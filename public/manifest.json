@@ -1,0 +1,22 @@
+{
+  "name": "El Pibe",
+  "short_name": "El Pibe",
+  "description": "Tu agente personal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080808",
+  "theme_color": "#080808",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgdmlld0JveD0iMCAwIDE5MiAxOTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjE5MiIgaGVpZ2h0PSIxOTIiIGZpbGw9IiMwODA4MDgiLz48Y2lyY2xlIGN4PSI5NiIgY3k9Ijk2IiByPSI2NCIgc3Ryb2tlPSIjZjBmMGYwIiBzdHJva2Utd2lkdGg9IjMiLz48Y2lyY2xlIGN4PSI3OCIgY3k9Ijg1IiByPSI1IiBmaWxsPSIjZjBmMGYwIi8+PGNpcmNsZSBjeD0iMTE0IiBjeT0iODUiIHI9IjUiIGZpbGw9IiNmMGYwZjAiLz48cGF0aCBkPSJNNzMgMTA5IFE5NiAxMjYgMTE5IDEwOSIgc3Ryb2tlPSIjZjBmMGYwIiBzdHJva2Utd2lkdGg9IjMiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgZmlsbD0ibm9uZSIvPjwvc3ZnPg==",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgdmlld0JveD0iMCAwIDUxMiA1MTIiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9IiMwODA4MDgiLz48Y2lyY2xlIGN4PSIyNTYiIGN5PSIyNTYiIHI9IjE3MCIgc3Ryb2tlPSIjZjBmMGYwIiBzdHJva2Utd2lkdGg9IjgiLz48Y2lyY2xlIGN4PSIyMDgiIGN5PSIyMjYiIHI9IjEzIiBmaWxsPSIjZjBmMGYwIi8+PGNpcmNsZSBjeD0iMzA0IiBjeT0iMjI2IiByPSIxMyIgZmlsbD0iI2YwZjBmMCIvPjxwYXRoIGQ9Ik0xOTUgMjkxIFEyNTYgMzM2IDMxNyAyOTEiIHN0cm9rZT0iI2YwZjBmMCIgc3Ryb2tlLXdpZHRoPSI4IiBzdHJva2UtbGluZWNhcD0icm91bmQiIGZpbGw9Im5vbmUiLz48L3N2Zz4=",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
