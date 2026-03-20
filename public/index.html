@@ -639,27 +639,139 @@ textarea::placeholder { color: var(--muted); }
       <circle cx="50" cy="4" r="2" fill="#2a2a2a"/>
       <circle cx="96" cy="50" r="2" fill="#2a2a2a"/>
       <circle cx="50" cy="96" r="2" fill="#2a2a2a"/>
-      <circle cx="4" cy="50" r="2" fill="#2a2a2a"/>
-    </svg>
-    <div class="ob-step" id="obStep"></div>
-  </div>
-</div>
-
 <script>
 // ── Storage ───────────────────────────────────
 function loadSessions() { try { return JSON.parse(localStorage.getItem('agnt3_sessions')||'[]'); } catch { return []; } }
 function saveSessions(s) { localStorage.setItem('agnt3_sessions', JSON.stringify(s)); }
 function loadMemory() { try { return JSON.parse(localStorage.getItem('agnt3_memory')||'[]'); } catch { return []; } }
 function saveMemory(m) { localStorage.setItem('agnt3_memory', JSON.stringify(m)); }
+function loadAuth() { try { return JSON.parse(localStorage.getItem('agnt3_auth')||'null'); } catch { return null; } }
+function saveAuth(a) { localStorage.setItem('agnt3_auth', JSON.stringify(a)); }
 
 // ── State ─────────────────────────────────────
 let sessions = loadSessions();
 let memory = loadMemory();
+let auth = loadAuth();
 let currentId = null;
 let history = [];
 let isLoading = false;
 
-// ── Init (called after all functions defined) ──
+// ── Handle OAuth callback ─────────────────────
+function handleOAuthCallback() {
+  const params = new URLSearchParams(window.location.search);
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  const email = params.get('email');
+  const name = params.get('name');
+  const expires_in = params.get('expires_in');
+  const error = params.get('error');
+
+  if (error) {
+    alert('Error al conectar con Google: ' + error);
+    window.history.replaceState({}, '', '/');
+    return;
+  }
+
+  if (access_token) {
+    auth = {
+      access_token,
+      refresh_token,
+      email,
+      name,
+      expires_at: Date.now() + (parseInt(expires_in) || 3600) * 1000
+    };
+    saveAuth(auth);
+    window.history.replaceState({}, '', '/');
+    updateAuthUI();
+    appendMsg('agent', `¡Dale ${name}! Ya estás conectado con Google.\n\nAhora puedo leer tus emails y tu calendario. ¿Querés que revise qué tenés en la agenda o tus últimos mails?`);
+  }
+}
+
+// ── Auth UI ───────────────────────────────────
+function updateAuthUI() {
+  const chips = document.querySelector('.header-chips');
+  if (!chips) return;
+  if (auth && auth.email) {
+    chips.innerHTML = `
+      <div class="chip" style="color:var(--white);border-color:#333">${auth.email}</div>
+      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Gmail ✓</div>
+      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Calendar ✓</div>
+      <div class="chip">Web</div>
+      <div class="chip">Memoria</div>
+    `;
+  } else {
+    chips.innerHTML = `
+      <div class="chip" style="cursor:pointer;border-color:#555;color:#aaa" onclick="connectGoogle()">Conectar Google</div>
+      <div class="chip">Web</div>
+      <div class="chip">Memoria</div>
+    `;
+  }
+}
+
+function connectGoogle() {
+  window.location.href = '/api/auth/login';
+}
+
+async function ensureValidToken() {
+  if (!auth) return null;
+  if (Date.now() < auth.expires_at - 60000) return auth.access_token;
+  if (!auth.refresh_token) { auth = null; saveAuth(null); updateAuthUI(); return null; }
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ refresh_token: auth.refresh_token })
+    });
+    const data = await res.json();
+    if (data.access_token) {
+      auth.access_token = data.access_token;
+      auth.expires_at = Date.now() + (data.expires_in || 3600) * 1000;
+      saveAuth(auth);
+      return auth.access_token;
+    }
+  } catch(e) {}
+  return null;
+}
+
+// ── Gmail helpers ─────────────────────────────
+async function fetchEmails() {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/gmail', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ access_token: token, action: 'list' })
+  });
+  return await res.json();
+}
+
+async function fetchCalendar() {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/calendar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ access_token: token, action: 'list' })
+  });
+  return await res.json();
+}
+
+async function sendEmail(to, subject, message) {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/gmail', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ access_token: token, action: 'send', to, subject, message })
+  });
+  return await res.json();
+}
+
+async function createCalendarEvent(event) {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/calendar', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ access_token: token, action: 'create', event })
+  });
+  return await res.json();
+}
 
 // ── Sessions ──────────────────────────────────
 function newChat() {
@@ -832,11 +944,11 @@ function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send
 // ── Memory extraction ─────────────────────────
 async function extractMemory(userMsg, reply) {
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
+    const r = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:200,
-        messages:[{ role:'user', content:`Del siguiente intercambio, extraé 0-2 datos sobre el usuario para recordar (nombre, deporte, preferencias, metas, horarios). Respondé SOLO con array JSON de strings cortos en español, sin markdown. Si no hay nada, respondé [].\nUsuario: ${userMsg}\nAgente: ${reply.slice(0,300)}` }]
+        messages:[{ role:'user', content:`Del siguiente intercambio, extraé 0-2 datos sobre el usuario para recordar. Respondé SOLO con array JSON de strings cortos en español, sin markdown. Si no hay nada, respondé [].\nUsuario: ${userMsg}\nAgente: ${reply.slice(0,300)}` }]
       })
     });
     const d = await r.json();
@@ -871,7 +983,6 @@ function renderObStep() {
   const isLast = obIndex === OB_QUESTIONS.length - 1;
   const dots = OB_QUESTIONS.map((_, i) =>
     `<div class="ob-dot${i <= obIndex ? ' active' : ''}"></div>`).join('');
-
   document.getElementById('obStep').innerHTML = `
     <div class="ob-progress">${dots}</div>
     <div class="ob-question">${q.q}</div>
@@ -882,10 +993,7 @@ function renderObStep() {
   `;
   setTimeout(() => {
     const inp = document.getElementById('obInput');
-    if (inp) {
-      inp.focus();
-      inp.onkeydown = e => { if(e.key==='Enter') obNext(); };
-    }
+    if (inp) { inp.focus(); inp.onkeydown = e => { if(e.key==='Enter') obNext(); }; }
   }, 50);
 }
 
@@ -894,52 +1002,60 @@ function obNext() {
   const val = inp ? inp.value.trim() : '';
   const q = OB_QUESTIONS[obIndex];
   if (val) obAnswers[q.key] = val;
-
-  if (obIndex < OB_QUESTIONS.length - 1) {
-    obIndex++;
-    renderObStep();
-  } else {
-    finishOnboarding();
-  }
+  if (obIndex < OB_QUESTIONS.length - 1) { obIndex++; renderObStep(); }
+  else finishOnboarding();
 }
 
 function finishOnboarding() {
-  // Build memory items from answers
   const items = [];
   if (obAnswers.nombre)     items.push(`Nombre: ${obAnswers.nombre}`);
   if (obAnswers.deporte)    items.push(`Deporte: ${obAnswers.deporte}`);
   if (obAnswers.frecuencia) items.push(`Entrena: ${obAnswers.frecuencia}`);
   if (obAnswers.meta)       items.push(`Meta: ${obAnswers.meta}`);
   if (obAnswers.extra)      items.push(`Nota: ${obAnswers.extra}`);
-
-  if (items.length) {
-    memory = [...memory, ...items].slice(-20);
-    saveMemory(memory);
-    renderMemory();
-  }
-
+  if (items.length) { memory = [...memory, ...items].slice(-20); saveMemory(memory); renderMemory(); }
   localStorage.setItem('agnt3_onboarded', '1');
   document.getElementById('onboardingOverlay').style.display = 'none';
-
-  if (sessions.length > 0) loadSession(sessions[0].id);
-  else newChat();
-
-  // Send a welcome message from agent
+  if (sessions.length > 0) loadSession(sessions[0].id); else newChat();
   setTimeout(() => {
     const name = obAnswers.nombre ? `, ${obAnswers.nombre}` : '';
-    appendMsg('agent', `Dale${name}, todo cargado 👊\n\nYa sé quién sos. Podés pedirme revisar tu calendario, tus emails, armar un plan de entrenamientos o buscar lo que necesites.\n\n¿Por dónde arrancamos?`);
+    appendMsg('agent', `Dale${name}, todo cargado 👊\n\nPara usar tus emails y calendario, conectá tu cuenta de Google tocando **"Conectar Google"** arriba. ¿Por dónde arrancamos?`);
   }, 300);
 }
 
 function skipOnboarding() {
   localStorage.setItem('agnt3_onboarded', '1');
   document.getElementById('onboardingOverlay').style.display = 'none';
-  if (sessions.length > 0) loadSession(sessions[0].id);
-  else newChat();
+  if (sessions.length > 0) loadSession(sessions[0].id); else newChat();
+}
+
+// ── Smart message handler ─────────────────────
+async function handleSmartMessage(text) {
+  const lower = text.toLowerCase();
+
+  // Calendar queries
+  if (auth && (lower.includes('calendario') || lower.includes('agenda') || lower.includes('semana') || lower.includes('eventos') || lower.includes('tengo hoy') || lower.includes('qué tengo'))) {
+    addStep('tool', 'leyendo Google Calendar...');
+    const calData = await fetchCalendar();
+    if (calData && calData.events) {
+      return `DATOS_CALENDARIO:\n${JSON.stringify(calData.events)}`;
+    }
+  }
+
+  // Email queries
+  if (auth && (lower.includes('mail') || lower.includes('email') || lower.includes('correo') || lower.includes('bandeja') || lower.includes('mensajes'))) {
+    addStep('tool', 'leyendo Gmail...');
+    const emailData = await fetchEmails();
+    if (emailData && emailData.emails) {
+      return `DATOS_EMAILS:\n${JSON.stringify(emailData.emails)}`;
+    }
+  }
+
+  return null;
 }
 
 // ── Send ──────────────────────────────────────
-const SYS = `Sos EL PIBE, el agente personal de Luigi Zeoli. Hablás en español rioplatense, sos directo, con onda y preciso. Usás expresiones uruguayas/rioplatenses naturalmente pero sin exagerar.
+const SYS = `Sos EL PIBE, el agente personal de Luigi Zeoli. Hablás en español rioplatense, sos directo, con onda y preciso.
 
 QUIÉN ES LUIGI:
 - 33 años, uruguayo, vive en Montevideo
@@ -947,29 +1063,26 @@ QUIÉN ES LUIGI:
 - Técnico en Marketing y Gerencia
 
 SUS PROYECTOS:
-- El Pibito de las Naves: creador de contenido en Instagram (+5.600 seguidores). Cultura sneaker técnica y auténtica, sin hype. Fuerte alineación con New Balance. También crea contenido de deporte, running y preparaciones/planificaciones deportivas. Objetivo: referente sneaker en Uruguay, colaboraciones con marcas.
+- El Pibito de las Naves: creador de contenido en Instagram (+5.600 seguidores). Cultura sneaker técnica y auténtica. También crea contenido de deporte, running y preparaciones. Objetivo: referente sneaker en Uruguay.
 - Crunchloop: software factory donde Luigi tiene el rol de Comunicación y Marketing
-- SEPAE: consultor externo junto a su socio Martín Gelpi. Foco en ventas, comercial, comunicación y estrategia
-- Advi-story: cofundador con su hermana Fiorella y su amigo Ariel. Consultoría de estrategia, marca personal, redes y ventas. Por cerrar primer cliente
-- Unmyth: founder de marca de ropa deportiva/urbana orientada a España, junto a Mauri y Fachuka. Etapa inicial
+- SEPAE: consultor externo junto a su socio Martín Gelpi. Ventas, comercial, comunicación y estrategia
+- Advi-story: cofundador con su hermana Fiorella y su amigo Ariel. Consultoría de estrategia, marca personal, redes. Por cerrar primer cliente
+- Unmyth: founder de marca de ropa deportiva/urbana para España, con Mauri y Fachuka
 
 DEPORTE:
-- Hace running, ciclismo, natación, gym y fútbol
+- Running, ciclismo, natación, gym y fútbol
 - Preparándose para Ironman 70.3 (2027)
 - Próximas carreras: 21K Montevideo, Maratón de Río, Maratón de Nueva York
 
 CUENTAS DE EMAIL:
-- zluigi9@gmail.com (mail personal, el más viejo)
-- advisory.luigi@gmail.com (mail laboral freelance)
-- elpibitodelasnaves@gmail.com (mail de influencer/creador)
-- lzeoli@crunchloop.io (mail de Crunchloop)
+- zluigi9@gmail.com (personal), advisory.luigi@gmail.com (laboral), elpibitodelasnaves@gmail.com (influencer), lzeoli@crunchloop.io (Crunchloop)
 
-ESTILO DE RESPUESTA:
-- Directo, sin rodeos, con criterio
-- Sin hype falso, sin clichés, sin grandilocuencia
-- Conocés bien a Luigi y sus proyectos, hablale como un socio de confianza
+Cuando recibás datos de calendario o emails (que empiezan con DATOS_CALENDARIO: o DATOS_EMAILS:), analizalos y respondé de forma útil y concisa.
 
-Memoria adicional del usuario:
+Si te piden crear un evento de calendario, respondé con un JSON así al final de tu respuesta:
+[CREAR_EVENTO:{"summary":"título","start":{"dateTime":"2026-03-21T10:00:00-03:00"},"end":{"dateTime":"2026-03-21T11:00:00-03:00"},"description":"descripción"}]
+
+Memoria adicional:
 {{MEM}}`;
 
 async function sendMessage() {
@@ -991,14 +1104,25 @@ async function sendMessage() {
 
   const sys = SYS.replace('{{MEM}}', memory.length ? memory.map(m=>`- ${m}`).join('\n') : 'sin datos previos');
 
+  // Check if we need to fetch Google data first
+  const googleData = await handleSmartMessage(text);
+  let messagesForApi = [...history];
+  if (googleData) {
+    // Inject Google data as context in the last user message
+    messagesForApi = [...history.slice(0, -1), {
+      role: 'user',
+      content: `${text}\n\n[Datos en tiempo real para responder esta pregunta]\n${googleData}`
+    }];
+    addStep('result', 'datos obtenidos ✓');
+  }
+
   try {
     const res = await fetch('/api/chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
-        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        model:'claude-sonnet-4-20250514', max_tokens:1500,
         system: sys,
-        tools:[{ type:"web_search_20250305", name:"web_search" }],
-        messages: history
+        messages: messagesForApi
       })
     });
 
@@ -1016,15 +1140,25 @@ async function sendMessage() {
     let fullText = '';
     for (const b of (data.content||[])) {
       if (b.type==='text') fullText += b.text;
-      else if (b.type==='mcp_tool_use') addStep('tool', getLabel(b.name));
-      else if (b.type==='mcp_tool_result') addStep('result', 'respuesta recibida');
-      else if (b.type==='tool_use') addStep('tool', 'búsqueda web');
-      else if (b.type==='tool_result') addStep('result', 'búsqueda lista');
+    }
+
+    // Check if response contains a calendar event to create
+    const eventMatch = fullText.match(/\[CREAR_EVENTO:(.*?)\]/s);
+    if (eventMatch) {
+      try {
+        const eventData = JSON.parse(eventMatch[1]);
+        addStep('tool', 'creando evento en Calendar...');
+        const created = await createCalendarEvent(eventData);
+        if (created && created.id) {
+          addStep('result', 'evento creado ✓');
+          fullText = fullText.replace(/\[CREAR_EVENTO:.*?\]/s, '') + '\n\n✅ Evento creado en tu calendario.';
+        }
+      } catch(e) {}
     }
 
     if (fullText) {
       addStep('result', 'respuesta generada');
-      appendMsg('agent', fullText);
+      appendMsg('agent', fullText.trim());
       history.push({ role:'assistant', content: data.content });
       saveSession(); renderHistory();
       extractMemory(text, fullText);
@@ -1042,14 +1176,9 @@ async function sendMessage() {
   document.getElementById('sendBtn').disabled = false;
 }
 
-function getLabel(name) {
-  const n = name.toLowerCase();
-  if (n.includes('gmail')||n.includes('mail')) return 'gmail';
-  if (n.includes('calendar')||n.includes('event')) return 'google calendar';
-  return name;
-}
-
 // ── Bootstrap ─────────────────────────────────
+handleOAuthCallback();
+updateAuthUI();
 renderHistory();
 renderMemory();
 const isFirstTime = !localStorage.getItem('agnt3_onboarded');
