@@ -837,7 +837,7 @@ function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send
 // ── Memory extraction ─────────────────────────
 async function extractMemory(userMsg, reply) {
   try {
-    const r = await fetch('/api/chat', {
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:200,
@@ -971,7 +971,7 @@ async function sendMessage() {
   const sys = SYS.replace('{{MEM}}', memory.length ? memory.map(m=>`- ${m}`).join('\n') : 'sin datos previos');
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
         model:'claude-sonnet-4-20250514', max_tokens:1000,
