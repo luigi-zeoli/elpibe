@@ -653,18 +653,7 @@ let currentId = null;
 let history = [];
 let isLoading = false;
 
-// ── Init ──────────────────────────────────────
-renderHistory();
-renderMemory();
-
-// Check if first time
-const isFirstTime = !localStorage.getItem('agnt3_onboarded');
-if (isFirstTime) {
-  startOnboarding();
-} else {
-  if (sessions.length > 0) loadSession(sessions[0].id);
-  else newChat();
-}
+// ── Init (called after all functions defined) ──
 
 // ── Sessions ──────────────────────────────────
 function newChat() {
@@ -1030,6 +1019,17 @@ function getLabel(name) {
   if (n.includes('gmail')||n.includes('mail')) return 'gmail';
   if (n.includes('calendar')||n.includes('event')) return 'google calendar';
   return name;
+}
+
+// ── Bootstrap ─────────────────────────────────
+renderHistory();
+renderMemory();
+const isFirstTime = !localStorage.getItem('agnt3_onboarded');
+if (isFirstTime) {
+  startOnboarding();
+} else {
+  if (sessions.length > 0) loadSession(sessions[0].id);
+  else newChat();
 }
 </script>
 </body>
