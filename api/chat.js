@@ -1,8 +1,4 @@
-export const config = {
-  api: {
-    bodyParser: true,
-  },
-};
+export const config = { api: { bodyParser: true } };
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,15 +13,21 @@ export default async function handler(req, res) {
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
 
+    const payload = {
+      model: body.model || 'claude-sonnet-4-20250514',
+      max_tokens: body.max_tokens || 1000,
+      system: body.system,
+      messages: body.messages
+    };
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'web-search-2025-03-05'
+        'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     });
 
     const data = await response.json();
