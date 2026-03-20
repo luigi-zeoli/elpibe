@@ -988,7 +988,7 @@ async function sendMessage() {
   }
 
   try {
-    const res = await fetch('/api/chat', {
+    const res = await fetch('/api/google?action=chat', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ model:'claude-sonnet-4-20250514', max_tokens:1500, system: sys, messages: messagesForApi })
     });
@@ -1083,14 +1083,14 @@ function updateAuthUI() {
   }
 }
 
-function connectGoogle() { window.location.href = '/api/auth/login'; }
+function connectGoogle() { window.location.href = '/api/google?action=login'; }
 
 async function ensureValidToken() {
   if (!auth) return null;
   if (Date.now() < auth.expires_at - 60000) return auth.access_token;
   if (!auth.refresh_token) { auth = null; saveAuth(null); updateAuthUI(); return null; }
   try {
-    const res = await fetch('/api/auth/refresh', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ refresh_token: auth.refresh_token }) });
+    const res = await fetch('/api/google?action=refresh', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ refresh_token: auth.refresh_token }) });
     const data = await res.json();
     if (data.access_token) { auth.access_token = data.access_token; auth.expires_at = Date.now() + (data.expires_in||3600)*1000; saveAuth(auth); return auth.access_token; }
   } catch(e) {}
@@ -1100,21 +1100,21 @@ async function ensureValidToken() {
 async function fetchEmails() {
   const token = await ensureValidToken();
   if (!token) return null;
-  const res = await fetch('/api/gmail', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, action: 'list' }) });
+  const res = await fetch('/api/google?action=gmail', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, gmail_action: 'list' }) });
   return await res.json();
 }
 
 async function fetchCalendar() {
   const token = await ensureValidToken();
   if (!token) return null;
-  const res = await fetch('/api/calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, action: 'list' }) });
+  const res = await fetch('/api/google?action=calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, cal_action: 'list' }) });
   return await res.json();
 }
 
 async function createCalendarEvent(event) {
   const token = await ensureValidToken();
   if (!token) return null;
-  const res = await fetch('/api/calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, action: 'create', event }) });
+  const res = await fetch('/api/google?action=calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, cal_action: 'create', event }) });
   return await res.json();
 }
 
