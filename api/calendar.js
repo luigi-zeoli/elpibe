@@ -17,19 +17,39 @@ export default async function handler(req, res) {
     if (action === 'list') {
       const now = new Date().toISOString();
       const weekLater = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-      const calRes = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&timeMax=${weekLater}&singleEvents=true&orderBy=startTime&maxResults=20`,
+
+      // Get all calendars first
+      const calListRes = await fetch(
+        'https://www.googleapis.com/calendar/v3/users/me/calendarList',
         { headers }
       );
-      const calData = await calRes.json();
-      const events = (calData.items || []).map(e => ({
-        id: e.id,
-        title: e.summary || '(sin título)',
-        start: e.start?.dateTime || e.start?.date || '',
-        end: e.end?.dateTime || e.end?.date || '',
-        description: e.description || '',
-        location: e.location || ''
-      }));
+      const calList = await calListRes.json();
+      const calendars = (calList.items || []).filter(c => c.selected !== false);
+
+      // Fetch events from all calendars in parallel
+      const allEvents = await Promise.all(
+        calendars.map(async (cal) => {
+          try {
+            const res = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${now}&timeMax=${weekLater}&singleEvents=true&orderBy=startTime&maxResults=10`,
+              { headers }
+            );
+            const data = await res.json();
+            return (data.items || []).map(e => ({
+              id: e.id,
+              title: e.summary || '(sin título)',
+              calendar: cal.summary || cal.id,
+              start: e.start?.dateTime || e.start?.date || '',
+              end: e.end?.dateTime || e.end?.date || '',
+              description: e.description || '',
+              location: e.location || ''
+            }));
+          } catch { return []; }
+        })
+      );
+
+      // Flatten and sort by start time
+      const events = allEvents.flat().sort((a, b) => a.start.localeCompare(b.start));
       return res.json({ events });
     }
 
