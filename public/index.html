@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EL PIBE</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=ABC+Diatype:wght@400&family=Unbounded:wght@300;400;700&family=DM+Mono:wght@300;400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Unbounded:wght@200;300;400;700;900&family=DM+Mono:ital,wght@0,300;0,400;1,300&display=swap');
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+:root {
+  --bg: #080808;
+  --surface: #111;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --text: #f0f0f0;
+  --muted: #444;
+  --muted2: #2c2c2c;
+  --white: #f0f0f0;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  cursor: default;
+}
+
+/* ── LAYOUT ─────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  grid-template-columns: 200px 1fr 240px;
+  height: 100vh;
+}
+
+/* ── HEADER ─────────────────────────────────── */
+header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--border);
+  gap: 20px;
+}
+.logo {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 6px;
+  color: var(--white);
+}
+.logo-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  background: var(--white);
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+  animation: breathe 3s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.header-sep { flex:1; }
+
+.header-chips {
+  display: flex;
+  gap: 6px;
+}
+.chip {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 10px;
+  border: 1px solid var(--border2);
+  border-radius: 2px;
+}
+
+/* ── LEFT: HISTORY ──────────────────────────── */
+.sidebar-left {
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-label {
+  font-size: 8px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.new-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--white);
+  color: var(--bg);
+  border: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.new-btn:hover { opacity: 0.8; }
+
+.history-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+.history-scroll::-webkit-scrollbar { width: 0; }
+
+.hist-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background 0.1s;
+  border-left: 2px solid transparent;
+}
+.hist-item:hover { background: var(--surface); }
+.hist-item.active {
+  border-left-color: var(--white);
+  background: var(--surface);
+}
+.hist-title {
+  font-size: 10px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+.hist-date {
+  font-size: 8px;
+  color: var(--muted);
+  letter-spacing: 1px;
+}
+
+.memory-section {
+  padding: 14px 16px;
+  border-top: 1px solid var(--border);
+}
+.memory-items {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+.memory-items::-webkit-scrollbar { width: 0; }
+.mem-item {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--border2);
+}
+.mem-empty {
+  font-size: 9px;
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* ── CENTER: CHAT ────────────────────────────── */
+.chat-area {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  scroll-behavior: smooth;
+}
+.messages::-webkit-scrollbar { width: 0; }
+
+/* ── WELCOME ─────────────────────────────────── */
+.welcome {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 40px;
+  padding: 40px;
+  text-align: center;
+}
+
+/* THE SMILE — central figure */
+.smile-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.smile-svg {
+  width: 110px;
+  height: 110px;
+  animation: slow-rotate 20s linear infinite;
+}
+@keyframes slow-rotate { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+.smile-ring-text {
+  position: absolute;
+  width: 110px; height: 110px;
+}
+
+.welcome-title {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.sugs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  max-width: 380px;
+}
+.sug {
+  padding: 11px 16px;
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sug:hover {
+  background: var(--surface);
+  color: var(--white);
+  border-color: var(--border2);
+}
+.sug-icon { opacity: 0.5; font-size: 13px; }
+
+/* ── MESSAGES ────────────────────────────────── */
+.msg {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  opacity: 0;
+  animation: fadein 0.2s ease forwards;
+  max-width: 72%;
+}
+@keyframes fadein { to { opacity:1; } }
+
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.agent { align-self: flex-start; align-items: flex-start; }
+
+.msg-who {
+  font-size: 8px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.msg-bubble {
+  padding: 14px 18px;
+  font-size: 12px;
+  line-height: 1.75;
+  letter-spacing: 0.1px;
+}
+.msg.agent .msg-bubble {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.msg.user .msg-bubble {
+  background: var(--white);
+  color: var(--bg);
+}
+.msg-bubble p { margin-bottom: 8px; }
+.msg-bubble p:last-child { margin: 0; }
+.msg-bubble ul { padding-left: 16px; margin: 6px 0; }
+.msg-bubble li { margin-bottom: 3px; }
+.msg-bubble strong { font-weight: 700; }
+
+/* Typing */
+.typing-row {
+  display: flex; gap: 5px; padding: 14px 18px; align-items: center;
+}
+.typing-row span {
+  width: 5px; height: 5px;
+  background: var(--muted);
+  border-radius: 50%;
+  animation: pulse2 1.2s ease-in-out infinite;
+}
+.typing-row span:nth-child(2) { animation-delay: 0.2s; }
+.typing-row span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse2 { 0%,100%{opacity:0.2} 50%{opacity:1} }
+
+/* ── INPUT ───────────────────────────────────── */
+.input-row {
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+}
+.input-inner {
+  flex: 1;
+  padding: 16px 20px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+textarea {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+  resize: none;
+  line-height: 1.6;
+  max-height: 90px;
+}
+textarea::placeholder { color: var(--muted); }
+.send-btn {
+  padding: 8px 20px;
+  background: var(--white);
+  color: var(--bg);
+  border: none;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+.send-btn:hover:not(:disabled) { opacity: 0.8; }
+.send-btn:disabled { opacity: 0.2; cursor: not-allowed; }
+
+/* ── RIGHT: STEPS ───────────────────────────── */
+.sidebar-right {
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.steps-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.steps-scroll::-webkit-scrollbar { width: 0; }
+
+.step {
+  padding: 10px 12px;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: all 0.25s ease;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.2px;
+}
+.step.show { opacity: 1; transform: translateY(0); }
+.step.thinking { color: var(--muted); border-left: 1px solid var(--border2); }
+.step.tool { background: var(--surface); color: var(--text); border-left: 1px solid var(--white); }
+.step.result { color: var(--muted); border-left: 1px solid var(--border2); }
+.step.error { color: #666; border-left: 1px solid #333; }
+.step-label {
+  font-size: 7px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: var(--muted);
+}
+.step.tool .step-label { color: var(--white); }
+
+.steps-idle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+/* small smile in idle state */
+.smile-idle {
+  opacity: 0.12;
+}
+
+.steps-idle-text {
+  font-size: 8px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ── ONBOARDING ──────────────────────────────── */
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadein 0.4s ease;
+}
+.onboarding-box {
+  width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  padding: 48px 40px;
+}
+.ob-smile {
+  animation: slow-rotate 20s linear infinite;
+}
+.ob-step {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: fadein 0.3s ease;
+}
+.ob-progress {
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.ob-dot {
+  width: 20px; height: 2px;
+  background: var(--border2);
+  transition: background 0.3s;
+}
+.ob-dot.active { background: var(--white); }
+.ob-question {
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 300;
+  font-size: 13px;
+  letter-spacing: 1px;
+  color: var(--white);
+  line-height: 1.6;
+  text-align: center;
+}
+.ob-hint {
+  font-size: 9px;
+  letter-spacing: 1.5px;
+  color: var(--muted);
+  text-align: center;
+  text-transform: uppercase;
+}
+.ob-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 14px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--white);
+  outline: none;
+  transition: border-color 0.2s;
+  border-radius: 0;
+}
+.ob-input:focus { border-color: var(--white); }
+.ob-input::placeholder { color: var(--muted); }
+.ob-next {
+  width: 100%;
+  padding: 13px;
+  background: var(--white);
+  color: var(--bg);
+  border: none;
+  font-family: 'Unbounded', sans-serif;
+  font-weight: 700;
+  font-size: 9px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.ob-next:hover { opacity: 0.8; }
+.ob-skip {
+  font-size: 8px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  text-transform: uppercase;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: 'DM Mono', monospace;
+  transition: color 0.15s;
+}
+.ob-skip:hover { color: var(--white); }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">EL PIBE<span class="logo-dot"></span></div>
+    <div class="header-sep"></div>
+    <div class="header-chips">
+      <div class="chip">Gmail</div>
+      <div class="chip">Calendar</div>
+      <div class="chip">Web</div>
+      <div class="chip">Memoria</div>
+    </div>
+  </header>
+
+  <!-- LEFT -->
+  <div class="sidebar-left">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sesiones</div>
+      <button class="new-btn" onclick="newChat()">+ nueva sesión</button>
+    </div>
+    <div class="history-scroll" id="historyList"></div>
+    <div class="memory-section">
+      <div class="sidebar-label">Memoria</div>
+      <div class="memory-items" id="memoryList">
+        <div class="mem-empty">sin datos aún</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CENTER -->
+  <div class="chat-area">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+
+        <!-- THE SMILE -->
+        <div class="smile-wrap">
+          <svg class="smile-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- outer ring -->
+            <circle cx="50" cy="50" r="46" stroke="#1e1e1e" stroke-width="1"/>
+            <!-- face circle -->
+            <circle cx="50" cy="50" r="34" stroke="#f0f0f0" stroke-width="1.5"/>
+            <!-- eyes -->
+            <circle cx="41" cy="44" r="2.5" fill="#f0f0f0"/>
+            <circle cx="59" cy="44" r="2.5" fill="#f0f0f0"/>
+            <!-- smile arc -->
+            <path d="M 38 56 Q 50 67 62 56" stroke="#f0f0f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+            <!-- orbit dots -->
+            <circle cx="50" cy="4" r="2" fill="#2a2a2a"/>
+            <circle cx="96" cy="50" r="2" fill="#2a2a2a"/>
+            <circle cx="50" cy="96" r="2" fill="#2a2a2a"/>
+            <circle cx="4" cy="50" r="2" fill="#2a2a2a"/>
+          </svg>
+        </div>
+
+        <div class="welcome-title">el pibe</div>
+
+        <div class="sugs">
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📅</span><span>¿Qué tengo esta semana?</span></button>
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📧</span><span>Resumíme mis últimos emails</span></button>
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🏃</span><span>Armame un plan de entrenamientos</span></button>
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🔍</span><span>Noticias de hoy</span></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-row">
+      <div class="input-inner">
+        <textarea id="userInput" placeholder="escribí tu tarea..." rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: STEPS -->
+  <div class="sidebar-right">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Proceso</div>
+    </div>
+    <div class="steps-scroll" id="stepsList">
+      <div class="steps-idle" id="stepsIdle">
+        <!-- small smile idle -->
+        <svg class="smile-idle" width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="34" stroke="#f0f0f0" stroke-width="1.5"/>
+          <circle cx="41" cy="44" r="2.5" fill="#f0f0f0"/>
+          <circle cx="59" cy="44" r="2.5" fill="#f0f0f0"/>
+          <path d="M 38 56 Q 50 67 62 56" stroke="#f0f0f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+        </svg>
+        <div class="steps-idle-text">en espera</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ONBOARDING OVERLAY -->
+<div class="onboarding-overlay" id="onboardingOverlay" style="display:none">
+  <div class="onboarding-box">
+    <svg class="ob-smile" width="80" height="80" viewBox="0 0 100 100" fill="none">
+      <circle cx="50" cy="50" r="46" stroke="#1e1e1e" stroke-width="1"/>
+      <circle cx="50" cy="50" r="34" stroke="#f0f0f0" stroke-width="1.5"/>
+      <circle cx="41" cy="44" r="2.5" fill="#f0f0f0"/>
+      <circle cx="59" cy="44" r="2.5" fill="#f0f0f0"/>
+      <path d="M 38 56 Q 50 67 62 56" stroke="#f0f0f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      <circle cx="50" cy="4" r="2" fill="#2a2a2a"/>
+      <circle cx="96" cy="50" r="2" fill="#2a2a2a"/>
+      <circle cx="50" cy="96" r="2" fill="#2a2a2a"/>
+      <circle cx="4" cy="50" r="2" fill="#2a2a2a"/>
+    </svg>
+    <div class="ob-step" id="obStep"></div>
+  </div>
+</div>
+
+<script>
+// ── Storage ───────────────────────────────────
+function loadSessions() { try { return JSON.parse(localStorage.getItem('agnt3_sessions')||'[]'); } catch { return []; } }
+function saveSessions(s) { localStorage.setItem('agnt3_sessions', JSON.stringify(s)); }
+function loadMemory() { try { return JSON.parse(localStorage.getItem('agnt3_memory')||'[]'); } catch { return []; } }
+function saveMemory(m) { localStorage.setItem('agnt3_memory', JSON.stringify(m)); }
+
+// ── State ─────────────────────────────────────
+let sessions = loadSessions();
+let memory = loadMemory();
+let currentId = null;
+let history = [];
+let isLoading = false;
+
+// ── Init ──────────────────────────────────────
+renderHistory();
+renderMemory();
+
+// Check if first time
+const isFirstTime = !localStorage.getItem('agnt3_onboarded');
+if (isFirstTime) {
+  startOnboarding();
+} else {
+  if (sessions.length > 0) loadSession(sessions[0].id);
+  else newChat();
+}
+
+// ── Sessions ──────────────────────────────────
+function newChat() {
+  const id = Date.now().toString();
+  sessions.unshift({ id, title: 'nueva sesión', date: new Date().toLocaleDateString('es-UY'), messages: [] });
+  saveSessions(sessions);
+  currentId = id;
+  history = [];
+  renderHistory();
+  resetUI();
+}
+
+function loadSession(id) {
+  const s = sessions.find(x => x.id === id);
+  if (!s) return;
+  currentId = id;
+  history = s.messages || [];
+  renderHistory();
+  replayMessages();
+}
+
+function saveSession() {
+  const idx = sessions.findIndex(x => x.id === currentId);
+  if (idx === -1) return;
+  sessions[idx].messages = history;
+  const first = history.find(m => m.role === 'user');
+  if (first) {
+    const t = typeof first.content === 'string' ? first.content : first.content[0]?.text || '';
+    sessions[idx].title = t.slice(0, 36) + (t.length > 36 ? '…' : '');
+  }
+  saveSessions(sessions);
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  el.innerHTML = sessions.map(s => `
+    <div class="hist-item${s.id === currentId ? ' active' : ''}" onclick="loadSession('${s.id}')">
+      <div class="hist-title">${s.title}</div>
+      <div class="hist-date">${s.date}</div>
+    </div>`).join('');
+}
+
+function renderMemory() {
+  const el = document.getElementById('memoryList');
+  if (!memory.length) { el.innerHTML = '<div class="mem-empty">sin datos aún</div>'; return; }
+  el.innerHTML = memory.slice(-8).map(m => `<div class="mem-item">${m}</div>`).join('');
+}
+
+// ── UI ────────────────────────────────────────
+function resetUI() {
+  document.getElementById('messages').innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="smile-wrap">
+        <svg class="smile-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" stroke="#1e1e1e" stroke-width="1"/>
+          <circle cx="50" cy="50" r="34" stroke="#f0f0f0" stroke-width="1.5"/>
+          <circle cx="41" cy="44" r="2.5" fill="#f0f0f0"/>
+          <circle cx="59" cy="44" r="2.5" fill="#f0f0f0"/>
+          <path d="M 38 56 Q 50 67 62 56" stroke="#f0f0f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+          <circle cx="50" cy="4" r="2" fill="#2a2a2a"/>
+          <circle cx="96" cy="50" r="2" fill="#2a2a2a"/>
+          <circle cx="50" cy="96" r="2" fill="#2a2a2a"/>
+          <circle cx="4" cy="50" r="2" fill="#2a2a2a"/>
+        </svg>
+      </div>
+      <div class="welcome-title">el pibe</div>
+      <div class="sugs">
+        <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📅</span><span>¿Qué tengo esta semana?</span></button>
+        <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📧</span><span>Resumíme mis últimos emails</span></button>
+        <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🏃</span><span>Armame un plan de entrenamientos</span></button>
+        <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🔍</span><span>Noticias de hoy</span></button>
+      </div>
+    </div>`;
+  resetSteps();
+}
+
+function resetSteps() {
+  document.getElementById('stepsList').innerHTML = `
+    <div class="steps-idle" id="stepsIdle">
+      <svg class="smile-idle" width="48" height="48" viewBox="0 0 100 100" fill="none">
+        <circle cx="50" cy="50" r="34" stroke="#f0f0f0" stroke-width="1.5"/>
+        <circle cx="41" cy="44" r="2.5" fill="#f0f0f0"/>
+        <circle cx="59" cy="44" r="2.5" fill="#f0f0f0"/>
+        <path d="M 38 56 Q 50 67 62 56" stroke="#f0f0f0" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      </svg>
+      <div class="steps-idle-text">en espera</div>
+    </div>`;
+}
+
+function hideWelcome() {
+  const w = document.getElementById('welcome');
+  if (w) w.style.display = 'none';
+}
+
+function replayMessages() {
+  resetUI();
+  if (!history.length) return;
+  hideWelcome();
+  history.forEach(m => {
+    if (m.role === 'user') {
+      const t = typeof m.content === 'string' ? m.content : m.content[0]?.text || '';
+      appendMsg('user', t, false);
+    } else if (m.role === 'assistant') {
+      const blocks = Array.isArray(m.content) ? m.content : [{ type:'text', text: m.content }];
+      const t = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
+      if (t) appendMsg('agent', t, false);
+    }
+  });
+  scrollDown();
+}
+
+function appendMsg(role, content, animate = true) {
+  const c = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = `msg ${role}`;
+  if (!animate) { d.style.opacity='1'; d.style.animation='none'; }
+  d.innerHTML = `
+    <div class="msg-who">${role === 'agent' ? 'el pibe' : 'vos'}</div>
+    <div class="msg-bubble">${fmt(content)}</div>`;
+  c.appendChild(d);
+  scrollDown();
+}
+
+function fmt(t) {
+  return t
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g,'<em>$1</em>')
+    .replace(/`(.*?)`/g,'<code style="background:#1a1a1a;padding:1px 5px;font-size:11px;border-radius:2px;">$1</code>')
+    .replace(/^[-•] (.*)/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/gs, m=>`<ul style="padding-left:14px;margin:6px 0;">${m}</ul>`)
+    .split('\n\n').map(p=>p.startsWith('<ul')?p:`<p>${p}</p>`).join('');
+}
+
+function addTyping() {
+  const c = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = 'msg agent'; d.id = 'typing';
+  d.style.opacity='1'; d.style.animation='none';
+  d.innerHTML = `<div class="msg-who">el pibe</div><div class="msg-bubble"><div class="typing-row"><span></span><span></span><span></span></div></div>`;
+  c.appendChild(d); scrollDown();
+}
+function removeTyping() { const t=document.getElementById('typing'); if(t) t.remove(); }
+
+function addStep(type, text) {
+  const idle = document.getElementById('stepsIdle');
+  if (idle) idle.remove();
+  const list = document.getElementById('stepsList');
+  const d = document.createElement('div');
+  d.className = `step ${type}`;
+  const labels = { thinking:'procesando', tool:'herramienta', result:'resultado', error:'error' };
+  d.innerHTML = `<div class="step-label">${labels[type]||type}</div>${text}`;
+  list.appendChild(d);
+  list.scrollTop = list.scrollHeight;
+  setTimeout(() => d.classList.add('show'), 30);
+}
+
+function scrollDown() {
+  const c = document.getElementById('messages');
+  c.scrollTop = c.scrollHeight;
+}
+
+// ── Input ─────────────────────────────────────
+function useSuggestion(el) {
+  document.getElementById('userInput').value = el.querySelector('span:last-child').innerText.trim();
+  sendMessage();
+}
+function autoResize(el) { el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+function handleKey(e) { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} }
+
+// ── Memory extraction ─────────────────────────
+async function extractMemory(userMsg, reply) {
+  try {
+    const r = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:200,
+        messages:[{ role:'user', content:`Del siguiente intercambio, extraé 0-2 datos sobre el usuario para recordar (nombre, deporte, preferencias, metas, horarios). Respondé SOLO con array JSON de strings cortos en español, sin markdown. Si no hay nada, respondé [].\nUsuario: ${userMsg}\nAgente: ${reply.slice(0,300)}` }]
+      })
+    });
+    const d = await r.json();
+    const raw = d.content?.[0]?.text||'[]';
+    const items = JSON.parse(raw.replace(/```json|```/g,'').trim());
+    if (Array.isArray(items) && items.length) {
+      memory = [...memory, ...items].slice(-20);
+      saveMemory(memory);
+      renderMemory();
+    }
+  } catch{}
+}
+
+// ── Onboarding ────────────────────────────────
+const OB_QUESTIONS = [
+  { key: 'nombre',     q: '¿Cómo te llamás?',                        hint: 'tu nombre',           placeholder: 'ej: Matías' },
+  { key: 'deporte',    q: '¿Qué deporte o actividad física hacés?',   hint: 'actividad principal',  placeholder: 'ej: running, ciclismo, natación...' },
+  { key: 'frecuencia', q: '¿Cuántos días por semana entrenás?',       hint: 'frecuencia',           placeholder: 'ej: 4 días, lunes miércoles viernes...' },
+  { key: 'meta',       q: '¿Tenés alguna meta o carrera próxima?',    hint: 'objetivo',             placeholder: 'ej: maratón en octubre, bajar 10min en 5k...' },
+  { key: 'extra',      q: '¿Algo más que quieras que recuerde?',      hint: 'opcional',             placeholder: 'ej: trabajo de 9 a 18, prefiero entrenar a la mañana...' },
+];
+let obIndex = 0;
+let obAnswers = {};
+
+function startOnboarding() {
+  document.getElementById('onboardingOverlay').style.display = 'flex';
+  renderObStep();
+}
+
+function renderObStep() {
+  const q = OB_QUESTIONS[obIndex];
+  const isLast = obIndex === OB_QUESTIONS.length - 1;
+  const dots = OB_QUESTIONS.map((_, i) =>
+    `<div class="ob-dot${i <= obIndex ? ' active' : ''}"></div>`).join('');
+
+  document.getElementById('obStep').innerHTML = `
+    <div class="ob-progress">${dots}</div>
+    <div class="ob-question">${q.q}</div>
+    <div class="ob-hint">${q.hint}</div>
+    <input class="ob-input" id="obInput" type="text" placeholder="${q.placeholder}" autocomplete="off"/>
+    <button class="ob-next" onclick="obNext()">${isLast ? 'listo →' : 'siguiente →'}</button>
+    ${obIndex > 0 ? '' : '<button class="ob-skip" onclick="skipOnboarding()">saltar</button>'}
+  `;
+  setTimeout(() => {
+    const inp = document.getElementById('obInput');
+    if (inp) {
+      inp.focus();
+      inp.onkeydown = e => { if(e.key==='Enter') obNext(); };
+    }
+  }, 50);
+}
+
+function obNext() {
+  const inp = document.getElementById('obInput');
+  const val = inp ? inp.value.trim() : '';
+  const q = OB_QUESTIONS[obIndex];
+  if (val) obAnswers[q.key] = val;
+
+  if (obIndex < OB_QUESTIONS.length - 1) {
+    obIndex++;
+    renderObStep();
+  } else {
+    finishOnboarding();
+  }
+}
+
+function finishOnboarding() {
+  // Build memory items from answers
+  const items = [];
+  if (obAnswers.nombre)     items.push(`Nombre: ${obAnswers.nombre}`);
+  if (obAnswers.deporte)    items.push(`Deporte: ${obAnswers.deporte}`);
+  if (obAnswers.frecuencia) items.push(`Entrena: ${obAnswers.frecuencia}`);
+  if (obAnswers.meta)       items.push(`Meta: ${obAnswers.meta}`);
+  if (obAnswers.extra)      items.push(`Nota: ${obAnswers.extra}`);
+
+  if (items.length) {
+    memory = [...memory, ...items].slice(-20);
+    saveMemory(memory);
+    renderMemory();
+  }
+
+  localStorage.setItem('agnt3_onboarded', '1');
+  document.getElementById('onboardingOverlay').style.display = 'none';
+
+  if (sessions.length > 0) loadSession(sessions[0].id);
+  else newChat();
+
+  // Send a welcome message from agent
+  setTimeout(() => {
+    const name = obAnswers.nombre ? `, ${obAnswers.nombre}` : '';
+    appendMsg('agent', `Dale${name}, todo cargado 👊\n\nYa sé quién sos. Podés pedirme revisar tu calendario, tus emails, armar un plan de entrenamientos o buscar lo que necesites.\n\n¿Por dónde arrancamos?`);
+  }, 300);
+}
+
+function skipOnboarding() {
+  localStorage.setItem('agnt3_onboarded', '1');
+  document.getElementById('onboardingOverlay').style.display = 'none';
+  if (sessions.length > 0) loadSession(sessions[0].id);
+  else newChat();
+}
+
+// ── Send ──────────────────────────────────────
+const SYS = `Sos EL PIBE, un el pibe con personalidad. Respondés en español rioplatense, sos directo, con onda y preciso. Usás expresiones argentinas naturalmente pero sin exagerar. Tenés acceso a Gmail, Google Calendar y web search.
+
+Para entrenamientos: creá eventos en Google Calendar con título claro (ej: "🏃 Carrera 10km Z2"), descripción con detalles del workout, y duración estimada.
+
+Memoria del usuario:
+{{MEM}}`;
+
+async function sendMessage() {
+  if (isLoading) return;
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  hideWelcome();
+  input.value = ''; input.style.height = 'auto';
+  isLoading = true;
+  document.getElementById('sendBtn').disabled = true;
+  resetSteps();
+
+  appendMsg('user', text);
+  history.push({ role:'user', content: text });
+  addTyping();
+  addStep('thinking', 'analizando solicitud...');
+
+  const sys = SYS.replace('{{MEM}}', memory.length ? memory.map(m=>`- ${m}`).join('\n') : 'sin datos previos');
+
+  try {
+    const res = await fetch('/api/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        model:'claude-sonnet-4-20250514', max_tokens:1000,
+        system: sys,
+        tools:[{ type:"web_search_20250305", name:"web_search" }],
+        mcp_servers:[
+          { type:"url", url:"https://gmail.mcp.claude.com/mcp", name:"gmail-mcp" },
+          { type:"url", url:"https://gcal.mcp.claude.com/mcp", name:"gcal-mcp" }
+        ],
+        messages: history
+      })
+    });
+
+    const data = await res.json();
+    removeTyping();
+
+    if (!res.ok) {
+      addStep('error', data.error?.message || 'error desconocido');
+      appendMsg('agent', 'Hubo un error. Intentá de nuevo.');
+      isLoading = false;
+      document.getElementById('sendBtn').disabled = false;
+      return;
+    }
+
+    let fullText = '';
+    for (const b of (data.content||[])) {
+      if (b.type==='text') fullText += b.text;
+      else if (b.type==='mcp_tool_use') addStep('tool', getLabel(b.name));
+      else if (b.type==='mcp_tool_result') addStep('result', 'respuesta recibida');
+      else if (b.type==='tool_use') addStep('tool', 'búsqueda web');
+      else if (b.type==='tool_result') addStep('result', 'búsqueda lista');
+    }
+
+    if (fullText) {
+      addStep('result', 'respuesta generada');
+      appendMsg('agent', fullText);
+      history.push({ role:'assistant', content: data.content });
+      saveSession(); renderHistory();
+      extractMemory(text, fullText);
+    } else {
+      appendMsg('agent', 'Listo. ¿Algo más?');
+    }
+
+  } catch(err) {
+    removeTyping();
+    addStep('error', err.message);
+    appendMsg('agent', 'Error de conexión.');
+  }
+
+  isLoading = false;
+  document.getElementById('sendBtn').disabled = false;
+}
+
+function getLabel(name) {
+  const n = name.toLowerCase();
+  if (n.includes('gmail')||n.includes('mail')) return 'gmail';
+  if (n.includes('calendar')||n.includes('event')) return 'google calendar';
+  return name;
+}
+</script>
+</body>
+</html>
