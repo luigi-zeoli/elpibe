@@ -368,6 +368,16 @@ textarea::placeholder { color: var(--muted); }
 .send-btn:hover:not(:disabled) { opacity: 0.8; }
 .send-btn:disabled { opacity: 0.2; cursor: not-allowed; }
 
+.img-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; flex-shrink: 0;
+  color: var(--muted); cursor: pointer;
+  border: 1px solid var(--border2); border-radius: 4px;
+  transition: all 0.15s;
+  align-self: flex-end; margin-bottom: 2px;
+}
+.img-btn:hover { color: var(--white); border-color: var(--white); }
+
 /* ── RIGHT: STEPS ───────────────────────────── */
 .sidebar-right {
   border-left: 1px solid var(--border);
@@ -599,6 +609,17 @@ textarea::placeholder { color: var(--muted); }
 
     <div class="input-row">
       <div class="input-inner">
+        <label for="imageInput" class="img-btn" title="Adjuntar imagen">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        </label>
+        <input type="file" id="imageInput" accept="image/*" style="display:none" onchange="handleImageSelect(event)">
+        <div id="imagePreview" style="display:none;align-items:center;gap:6px;padding:4px 0;">
+          <img id="previewImg" style="height:36px;width:36px;object-fit:cover;border:1px solid var(--border2);">
+          <button onclick="clearImage()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;">×</button>
+        </div>
         <textarea id="userInput" placeholder="escribí tu tarea..." rows="1"
           onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
         <button class="send-btn" id="sendBtn" onclick="sendMessage()">enviar</button>
@@ -771,14 +792,15 @@ function replayMessages() {
   scrollDown();
 }
 
-function appendMsg(role, content, animate = true) {
+function appendMsg(role, content, animate = true, image = null) {
   const c = document.getElementById('messages');
   const d = document.createElement('div');
   d.className = `msg ${role}`;
   if (!animate) { d.style.opacity='1'; d.style.animation='none'; }
+  const imgHtml = image ? `<img src="data:${image.mediaType};base64,${image.base64}" style="max-width:180px;max-height:120px;margin-bottom:6px;border:1px solid var(--border2);display:block;">` : '';
   d.innerHTML = `
     <div class="msg-who">${role === 'agent' ? 'el pibe' : 'vos'}</div>
-    <div class="msg-bubble">${fmt(content)}</div>`;
+    <div class="msg-bubble">${imgHtml}${fmt(content)}</div>`;
   c.appendChild(d);
   scrollDown();
 }
@@ -972,8 +994,20 @@ async function sendMessage() {
   document.getElementById('sendBtn').disabled = true;
   resetSteps();
 
-  appendMsg('user', text);
-  history.push({ role:'user', content: text });
+  appendMsg('user', text, true, pendingImage);
+
+  // Build user content with optional image
+  let userContent;
+  if (pendingImage) {
+    userContent = [
+      { type: 'image', source: { type: 'base64', media_type: pendingImage.mediaType, data: pendingImage.base64 } },
+      { type: 'text', text }
+    ];
+    clearImage();
+  } else {
+    userContent = text;
+  }
+  history.push({ role:'user', content: userContent });
   addTyping();
   addStep('thinking', 'analizando solicitud...');
 
@@ -1039,6 +1073,29 @@ async function sendMessage() {
 
   isLoading = false;
   document.getElementById('sendBtn').disabled = false;
+}
+
+// ── Image handling ────────────────────────────
+let pendingImage = null;
+
+function handleImageSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const base64 = e.target.result;
+    const mediaType = file.type || 'image/jpeg';
+    pendingImage = { base64: base64.split(',')[1], mediaType };
+    document.getElementById('previewImg').src = base64;
+    document.getElementById('imagePreview').style.display = 'flex';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearImage() {
+  pendingImage = null;
+  document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('imageInput').value = '';
 }
 
 // ── Google Auth ───────────────────────────────
