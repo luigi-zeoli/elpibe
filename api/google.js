@@ -21,6 +21,8 @@ export default async function handler(req, res) {
       'https://www.googleapis.com/auth/gmail.readonly',
       'https://www.googleapis.com/auth/calendar',
       'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/youtube.readonly',
+      'https://www.googleapis.com/auth/yt-analytics.readonly',
       'openid', 'email', 'profile'
     ].join(' ');
 
@@ -186,6 +188,116 @@ export default async function handler(req, res) {
         const createRes = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', { method:'POST', headers, body: JSON.stringify(event) });
         return res.json(await createRes.json());
       }
+    } catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // ── YOUTUBE ───────────────────────────────────
+  if (action === 'youtube' && req.method === 'POST') {
+    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    const { access_token, youtube_action, video_id, max_results = 20 } = body;
+    if (!access_token) return res.status(401).json({ error: 'No access token' });
+    const headers = { Authorization: `Bearer ${access_token}` };
+
+    try {
+      // Get channel stats + info
+      if (youtube_action === 'channel') {
+        const r = await fetch(
+          'https://www.googleapis.com/youtube/v3/channels?part=snippet,statistics,brandingSettings&mine=true',
+          { headers }
+        );
+        const d = await r.json();
+        const ch = d.items?.[0];
+        if (!ch) return res.json({ error: 'No channel found' });
+        return res.json({
+          id: ch.id,
+          title: ch.snippet?.title,
+          description: ch.snippet?.description,
+          customUrl: ch.snippet?.customUrl,
+          publishedAt: ch.snippet?.publishedAt,
+          country: ch.snippet?.country,
+          subscribers: ch.statistics?.subscriberCount,
+          views: ch.statistics?.viewCount,
+          videoCount: ch.statistics?.videoCount,
+          thumbnail: ch.snippet?.thumbnails?.high?.url
+        });
+      }
+
+      // List videos with stats
+      if (youtube_action === 'videos') {
+        // Get channel uploads playlist ID
+        const chRes = await fetch(
+          'https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true',
+          { headers }
+        );
+        const chData = await chRes.json();
+        const uploadsPlaylistId = chData.items?.[0]?.contentDetails?.relatedPlaylists?.uploads;
+        if (!uploadsPlaylistId) return res.json({ error: 'No uploads playlist found' });
+
+        // Get video IDs from playlist
+        const plRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails&playlistId=${uploadsPlaylistId}&maxResults=${max_results}`,
+          { headers }
+        );
+        const plData = await plRes.json();
+        const videoIds = (plData.items || []).map(i => i.contentDetails.videoId).join(',');
+        if (!videoIds) return res.json({ videos: [] });
+
+        // Get video details + stats
+        const vRes = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${videoIds}`,
+          { headers }
+        );
+        const vData = await vRes.json();
+        const videos = (vData.items || []).map(v => ({
+          id: v.id,
+          title: v.snippet?.title,
+          description: v.snippet?.description,
+          publishedAt: v.snippet?.publishedAt,
+          thumbnail: v.snippet?.thumbnails?.high?.url,
+          duration: v.contentDetails?.duration,
+          views: v.statistics?.viewCount,
+          likes: v.statistics?.likeCount,
+          comments: v.statistics?.commentCount,
+          tags: v.snippet?.tags || []
+        }));
+        return res.json({ videos, nextPageToken: plData.nextPageToken });
+      }
+
+      // Get single video detail
+      if (youtube_action === 'video_detail' && video_id) {
+        const r = await fetch(
+          `https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails&id=${video_id}`,
+          { headers }
+        );
+        const d = await r.json();
+        const v = d.items?.[0];
+        if (!v) return res.json({ error: 'Video not found' });
+        return res.json({
+          id: v.id,
+          title: v.snippet?.title,
+          description: v.snippet?.description,
+          publishedAt: v.snippet?.publishedAt,
+          tags: v.snippet?.tags || [],
+          duration: v.contentDetails?.duration,
+          views: v.statistics?.viewCount,
+          likes: v.statistics?.likeCount,
+          comments: v.statistics?.commentCount,
+          thumbnail: v.snippet?.thumbnails?.maxres?.url || v.snippet?.thumbnails?.high?.url
+        });
+      }
+
+      // Get YouTube Analytics (views, watch time, subscribers by period)
+      if (youtube_action === 'analytics') {
+        const { start_date, end_date, metrics = 'views,estimatedMinutesWatched,subscribersGained,subscribersLost' } = body;
+        const today = new Date().toISOString().split('T')[0];
+        const thirtyDaysAgo = new Date(Date.now() - 30*24*60*60*1000).toISOString().split('T')[0];
+        const r = await fetch(
+          `https://youtubeanalytics.googleapis.com/v2/reports?ids=channel%3D%3DMINE&startDate=${start_date || thirtyDaysAgo}&endDate=${end_date || today}&metrics=${metrics}&dimensions=day&sort=day`,
+          { headers }
+        );
+        return res.json(await r.json());
+      }
+
     } catch (err) { return res.status(500).json({ error: err.message }); }
   }
 

@@ -601,8 +601,8 @@ textarea::placeholder { color: var(--muted); }
         <div class="sugs">
           <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📅</span><span>¿Qué tengo esta semana?</span></button>
           <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">📧</span><span>Resumíme mis últimos emails</span></button>
-          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🏃</span><span>Armame un plan de entrenamientos</span></button>
-          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🔍</span><span>Noticias de hoy</span></button>
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">▶️</span><span>¿Cómo está yendo el canal de YouTube?</span></button>
+          <button class="sug" onclick="useSuggestion(this)"><span class="sug-icon">🎯</span><span>Armame una estrategia de contenido para el canal</span></button>
         </div>
       </div>
     </div>
@@ -979,6 +979,13 @@ DEPORTE: running, ciclismo, natación, gym, fútbol. Próximo: 21K Montevideo, M
 Cuando recibás datos que empiezan con DATOS_CALENDARIO: o DATOS_EMAILS:, analizalos y respondé útil y conciso.
 Para crear eventos respondé con [CREAR_EVENTO:{"summary":"título","start":{"dateTime":"ISO"},"end":{"dateTime":"ISO"},"description":"desc"}]
 
+Cuando recibás datos que empiezan con DATOS_YOUTUBE_CANAL:, DATOS_YOUTUBE_VIDEOS: o DATOS_YOUTUBE_ANALYTICS:, analizalos para dar insights accionables del canal El Pibito de las Naves. Podés:
+- Identificar qué videos funcionaron mejor y por qué
+- Sugerir títulos optimizados basados en los que más vistas tuvieron
+- Proponer ideas de contenido alineadas con la temática del canal (sneakers, running, deporte, cultura urbana)
+- Detectar tendencias en el crecimiento de suscriptores y vistas
+- Armar estrategias de contenido concretas
+
 Memoria:
 {{MEM}}`;
 
@@ -1131,6 +1138,7 @@ function updateAuthUI() {
       <div class="chip" style="color:var(--white);border-color:#333;font-size:8px">${auth.email}</div>
       <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Gmail ✓</div>
       <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Calendar ✓</div>
+      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">YouTube ✓</div>
       <div class="chip">Memoria</div>`;
   } else {
     chips.innerHTML = `
@@ -1175,6 +1183,27 @@ async function createCalendarEvent(event) {
   return await res.json();
 }
 
+async function fetchYouTubeChannel() {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'channel' }) });
+  return await res.json();
+}
+
+async function fetchYouTubeVideos(max_results = 20) {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'videos', max_results }) });
+  return await res.json();
+}
+
+async function fetchYouTubeAnalytics(start_date, end_date) {
+  const token = await ensureValidToken();
+  if (!token) return null;
+  const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'analytics', start_date, end_date }) });
+  return await res.json();
+}
+
 async function handleGoogleData(text) {
   const lower = text.toLowerCase();
   if (auth && (lower.includes('calendario')||lower.includes('agenda')||lower.includes('semana')||lower.includes('qué tengo')||lower.includes('eventos'))) {
@@ -1186,6 +1215,19 @@ async function handleGoogleData(text) {
     addStep('tool', 'leyendo Gmail...');
     const d = await fetchEmails();
     if (d && d.emails) return `DATOS_EMAILS:\n${JSON.stringify(d.emails)}`;
+  }
+  if (auth && (lower.includes('youtube')||lower.includes('canal')||lower.includes('video')||lower.includes('pibito')||lower.includes('suscriptor')||lower.includes('vistas')||lower.includes('contenido')||lower.includes('título')||lower.includes('estrategia'))) {
+    addStep('tool', 'leyendo YouTube...');
+    const parts = [];
+    const canal = await fetchYouTubeChannel();
+    if (canal && canal.title) parts.push(`DATOS_YOUTUBE_CANAL:\n${JSON.stringify(canal)}`);
+    const videos = await fetchYouTubeVideos(25);
+    if (videos && videos.videos) parts.push(`DATOS_YOUTUBE_VIDEOS:\n${JSON.stringify(videos.videos)}`);
+    if (lower.includes('analytics')||lower.includes('crecimiento')||lower.includes('rendimiento')||lower.includes('estadística')) {
+      const analytics = await fetchYouTubeAnalytics();
+      if (analytics && analytics.rows) parts.push(`DATOS_YOUTUBE_ANALYTICS:\n${JSON.stringify(analytics)}`);
+    }
+    if (parts.length) return parts.join('\n\n');
   }
   return null;
 }
