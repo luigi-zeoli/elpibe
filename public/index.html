@@ -1105,10 +1105,24 @@ function clearImage() {
   document.getElementById('imageInput').value = '';
 }
 
-// ── Google Auth ───────────────────────────────
-function loadAuth() { try { return JSON.parse(localStorage.getItem('agnt3_auth')||'null'); } catch { return null; } }
-function saveAuth(a) { localStorage.setItem('agnt3_auth', JSON.stringify(a)); }
-let auth = loadAuth();
+// ── Google Auth (multi-cuenta) ────────────────
+function loadAuth(type) { try { return JSON.parse(localStorage.getItem(`agnt3_auth_${type}`)||'null'); } catch { return null; } }
+function saveAuth(type, a) { a ? localStorage.setItem(`agnt3_auth_${type}`, JSON.stringify(a)) : localStorage.removeItem(`agnt3_auth_${type}`); }
+let authPersonal = loadAuth('personal');
+let authAdvisory = loadAuth('advisory');
+let authYoutube  = loadAuth('youtube');
+
+function getAuthByType(type) {
+  if (type === 'advisory') return authAdvisory;
+  if (type === 'youtube')  return authYoutube;
+  return authPersonal;
+}
+function setAuthByType(type, a) {
+  if (type === 'advisory') authAdvisory = a;
+  else if (type === 'youtube') authYoutube = a;
+  else authPersonal = a;
+  saveAuth(type, a);
+}
 
 function handleOAuthCallback() {
   const params = new URLSearchParams(window.location.search);
@@ -1116,89 +1130,106 @@ function handleOAuthCallback() {
   const error = params.get('error');
   if (error) { window.history.replaceState({}, '', '/'); return; }
   if (access_token) {
-    auth = {
+    const account_type = params.get('account_type') || 'personal';
+    const authData = {
       access_token,
       refresh_token: params.get('refresh_token') || '',
       email: params.get('email') || '',
       name: params.get('name') || '',
       expires_at: Date.now() + (parseInt(params.get('expires_in')) || 3600) * 1000
     };
-    saveAuth(auth);
+    setAuthByType(account_type, authData);
     window.history.replaceState({}, '', '/');
     updateAuthUI();
-    setTimeout(() => appendMsg('agent', `¡Dale ${auth.name}! Conectado con Google. Ya puedo leer tus emails y calendario. ¿Arrancamos?`), 400);
+    const labels = { personal: 'cuenta personal', advisory: 'cuenta advisory', youtube: 'YouTube' };
+    setTimeout(() => appendMsg('agent', `¡Dale! Conecté tu ${labels[account_type] || 'cuenta'} (${authData.email}). ¿Arrancamos?`), 400);
   }
 }
 
 function updateAuthUI() {
   const chips = document.querySelector('.header-chips');
   if (!chips) return;
-  if (auth && auth.email) {
-    chips.innerHTML = `
-      <div class="chip" style="color:var(--white);border-color:#333;font-size:8px">${auth.email}</div>
-      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Gmail ✓</div>
-      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">Calendar ✓</div>
-      <div class="chip" style="cursor:pointer" onclick="connectGoogle()">YouTube ✓</div>
-      <div class="chip">Memoria</div>`;
-  } else {
-    chips.innerHTML = `
-      <div class="chip" style="cursor:pointer;border-color:#555;color:#bbb" onclick="connectGoogle()">+ Conectar Google</div>
-      <div class="chip">Web</div>
-      <div class="chip">Memoria</div>`;
-  }
+  const c = (label, connected, type, hint, color) =>
+    `<div class="chip" style="cursor:pointer;color:${connected ? color : '#555'}" onclick="connectAccount('${type}','${hint}')" title="${connected ? getAuthByType(type)?.email : 'Conectar'}">${connected ? label + ' ✓' : '+ ' + label}</div>`;
+  chips.innerHTML =
+    c('Personal', !!authPersonal, 'personal', 'zluigi9@gmail.com', '#aaffaa') +
+    c('Advisory', !!authAdvisory, 'advisory', 'advisory.luigi@gmail.com', '#aaffaa') +
+    c('YouTube',  !!authYoutube,  'youtube',  'elpibitodelasnaves@gmail.com', '#ffaaaa') +
+    `<div class="chip">Memoria</div>`;
 }
 
-function connectGoogle() { window.location.href = '/api/google?action=login'; }
+function connectAccount(type, hint) {
+  window.location.href = `/api/google?action=login&account_type=${type}&hint=${encodeURIComponent(hint)}`;
+}
 
-async function ensureValidToken() {
+async function ensureValidToken(type = 'personal') {
+  const auth = getAuthByType(type);
   if (!auth) return null;
   if (Date.now() < auth.expires_at - 60000) return auth.access_token;
-  if (!auth.refresh_token) { auth = null; saveAuth(null); updateAuthUI(); return null; }
+  if (!auth.refresh_token) { setAuthByType(type, null); updateAuthUI(); return null; }
   try {
     const res = await fetch('/api/google?action=refresh', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ refresh_token: auth.refresh_token }) });
     const data = await res.json();
-    if (data.access_token) { auth.access_token = data.access_token; auth.expires_at = Date.now() + (data.expires_in||3600)*1000; saveAuth(auth); return auth.access_token; }
+    if (data.access_token) {
+      const updated = {...auth, access_token: data.access_token, expires_at: Date.now() + (data.expires_in||3600)*1000};
+      setAuthByType(type, updated);
+      return data.access_token;
+    }
   } catch(e) {}
   return null;
 }
 
 async function fetchEmails() {
-  const token = await ensureValidToken();
-  if (!token) return null;
-  const res = await fetch('/api/google?action=gmail', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, gmail_action: 'list' }) });
-  return await res.json();
+  const allEmails = [];
+  for (const type of ['personal', 'advisory']) {
+    const token = await ensureValidToken(type);
+    if (!token) continue;
+    try {
+      const res = await fetch('/api/google?action=gmail', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, gmail_action: 'list' }) });
+      const d = await res.json();
+      if (d.emails) allEmails.push(...d.emails.map(e => ({...e, account: getAuthByType(type)?.email || type})));
+    } catch(e) {}
+  }
+  return { emails: allEmails };
 }
 
 async function fetchCalendar() {
-  const token = await ensureValidToken();
-  if (!token) return null;
-  const res = await fetch('/api/google?action=calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, cal_action: 'list' }) });
-  return await res.json();
+  const allEvents = [];
+  for (const type of ['personal', 'advisory']) {
+    const token = await ensureValidToken(type);
+    if (!token) continue;
+    try {
+      const res = await fetch('/api/google?action=calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, cal_action: 'list' }) });
+      const d = await res.json();
+      if (d.events) allEvents.push(...d.events.map(e => ({...e, account: getAuthByType(type)?.email || type})));
+    } catch(e) {}
+  }
+  return { events: allEvents.sort((a,b) => a.start.localeCompare(b.start)) };
 }
 
 async function createCalendarEvent(event) {
-  const token = await ensureValidToken();
+  const token = await ensureValidToken('personal');
   if (!token) return null;
   const res = await fetch('/api/google?action=calendar', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, cal_action: 'create', event }) });
   return await res.json();
 }
 
 async function fetchYouTubeChannel() {
-  const token = await ensureValidToken();
+  const token = await ensureValidToken('youtube');
   if (!token) return null;
   const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'channel' }) });
   return await res.json();
 }
 
 async function fetchYouTubeVideos(max_results = 20) {
-  const token = await ensureValidToken();
+  const token = await ensureValidToken('youtube');
   if (!token) return null;
   const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'videos', max_results }) });
   return await res.json();
 }
 
 async function fetchYouTubeAnalytics(start_date, end_date) {
-  const token = await ensureValidToken();
+  const token = await ensureValidToken('youtube');
   if (!token) return null;
   const res = await fetch('/api/google?action=youtube', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ access_token: token, youtube_action: 'analytics', start_date, end_date }) });
   return await res.json();
@@ -1206,17 +1237,18 @@ async function fetchYouTubeAnalytics(start_date, end_date) {
 
 async function handleGoogleData(text) {
   const lower = text.toLowerCase();
-  if (auth && (lower.includes('calendario')||lower.includes('agenda')||lower.includes('semana')||lower.includes('qué tengo')||lower.includes('eventos'))) {
+  const hasGoogle = authPersonal || authAdvisory;
+  if (hasGoogle && (lower.includes('calendario')||lower.includes('agenda')||lower.includes('semana')||lower.includes('qué tengo')||lower.includes('eventos'))) {
     addStep('tool', 'leyendo Google Calendar...');
     const d = await fetchCalendar();
     if (d && d.events) return `DATOS_CALENDARIO:\n${JSON.stringify(d.events)}`;
   }
-  if (auth && (lower.includes('mail')||lower.includes('email')||lower.includes('correo')||lower.includes('mensajes')||lower.includes('bandeja'))) {
+  if (hasGoogle && (lower.includes('mail')||lower.includes('email')||lower.includes('correo')||lower.includes('mensajes')||lower.includes('bandeja'))) {
     addStep('tool', 'leyendo Gmail...');
     const d = await fetchEmails();
     if (d && d.emails) return `DATOS_EMAILS:\n${JSON.stringify(d.emails)}`;
   }
-  if (auth && (lower.includes('youtube')||lower.includes('canal')||lower.includes('video')||lower.includes('pibito')||lower.includes('suscriptor')||lower.includes('vistas')||lower.includes('contenido')||lower.includes('título')||lower.includes('estrategia'))) {
+  if (authYoutube && (lower.includes('youtube')||lower.includes('canal')||lower.includes('video')||lower.includes('pibito')||lower.includes('suscriptor')||lower.includes('vistas')||lower.includes('contenido')||lower.includes('título')||lower.includes('estrategia'))) {
     addStep('tool', 'leyendo YouTube...');
     const parts = [];
     const canal = await fetchYouTubeChannel();

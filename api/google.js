@@ -15,23 +15,34 @@ export default async function handler(req, res) {
 
   // ── AUTH: Login redirect ──────────────────────
   if (action === 'login') {
-    const scopes = [
-      'https://www.googleapis.com/auth/gmail.modify',
-      'https://www.googleapis.com/auth/gmail.send',
-      'https://www.googleapis.com/auth/gmail.readonly',
-      'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.events',
-      'https://www.googleapis.com/auth/youtube.readonly',
-      'https://www.googleapis.com/auth/yt-analytics.readonly',
-      'openid', 'email', 'profile'
-    ].join(' ');
+    const account_type = req.query.account_type || 'personal';
+    const login_hint = req.query.hint || '';
+
+    let scopes;
+    if (account_type === 'youtube') {
+      scopes = [
+        'https://www.googleapis.com/auth/youtube.readonly',
+        'https://www.googleapis.com/auth/yt-analytics.readonly',
+        'openid', 'email', 'profile'
+      ].join(' ');
+    } else {
+      scopes = [
+        'https://www.googleapis.com/auth/gmail.modify',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/calendar',
+        'https://www.googleapis.com/auth/calendar.events',
+        'openid', 'email', 'profile'
+      ].join(' ');
+    }
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${CLIENT_ID}&` +
       `redirect_uri=${encodeURIComponent(REDIRECT_URI + '?action=callback')}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent(scopes)}&` +
-      `access_type=offline&prompt=consent`;
+      `access_type=offline&prompt=consent&state=${encodeURIComponent(account_type)}` +
+      (login_hint ? `&login_hint=${encodeURIComponent(login_hint)}` : '');
 
     return res.redirect(authUrl);
   }
@@ -65,7 +76,8 @@ export default async function handler(req, res) {
         refresh_token: tokens.refresh_token || '',
         expires_in: tokens.expires_in || 3600,
         email: user.email || '',
-        name: user.name || ''
+        name: user.name || '',
+        account_type: req.query.state || 'personal'
       });
       return res.redirect('/?' + params.toString());
     } catch (err) {
